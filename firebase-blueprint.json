@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account and learning progress metadata.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "scholarLevel": { "type": "string", "enum": ["Novice", "Scribe", "Scholar", "Ancient Master"] },
+        "xp": { "type": "integer" },
+        "completedLessons": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email"]
+    },
+    "Translation": {
+      "title": "Translation Record",
+      "description": "A record of a modern to ancient translation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "modernText": { "type": "string" },
+        "targetLanguage": { "type": "string" },
+        "targetEra": { "type": "string" },
+        "translatedText": { "type": "string" },
+        "grammarExplainer": { "type": "string" },
+        "ipa": { "type": "string" },
+        "accuracyScore": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["id", "modernText", "translatedText", "targetLanguage", "createdAt"]
+    },
+    "LessonProgress": {
+      "title": "Lesson Progress",
+      "description": "Tracking user performance on specific lessons.",
+      "type": "object",
+      "properties": {
+        "lessonId": { "type": "string" },
+        "status": { "type": "string", "enum": ["started", "completed"] },
+        "score": { "type": "integer" },
+        "lastAccessed": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lessonId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Public and private user metadata."
+    },
+    "/users/{userId}/progress/{lessonId}": {
+      "schema": "LessonProgress",
+      "description": "Individual lesson tracking for a user."
+    },
+    "/translations/{translationId}": {
+      "schema": "Translation",
+      "description": "Global or user-saved translation records."
+    }
+  }
+}

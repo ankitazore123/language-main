@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUser(data) {
+      return data.userId == request.auth.uid 
+        && data.email is string 
+        && data.email.size() <= 256
+        && data.displayName is string
+        && data.displayName.size() <= 100
+        && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && data.scholarLevel in ['Novice', 'Scribe', 'Scholar', 'Ancient Master']
+        && data.xp is int
+        && data.completedLessons is list
+        && data.completedLessons.size() <= 1000
+        && data.createdAt is timestamp;
+    }
+
+    function isValidTranslation(data) {
+      return data.modernText is string && data.modernText.size() <= 5000
+        && data.translatedText is string && data.translatedText.size() <= 10000
+        && data.targetLanguage is string && data.targetLanguage.size() <= 100
+        && data.createdAt == request.time
+        && (data.userId == null || data.userId == request.auth.uid);
+    }
+
+    // --- Matches ---
+    
+    // User Profiles
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false; // Profiles are not listable for privacy
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'scholarLevel', 'xp', 'completedLessons']);
+    }
+
+    // Lesson Progress
+    match /users/{userId}/progress/{lessonId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidId(lessonId);
+    }
+
+    // Translations
+    match /translations/{translationId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (resource.data.isPublic == true || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidTranslation(incoming()) && isValidId(translationId);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
